@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { usePlayerControls } from "../game/player";
 import { createNPCs, NPC_STATE } from "../game/npc";
 import { ShootingManager, getPlayerAimDirection } from "../game/shooting";
+import HUD from "./HUD";
 
 /**
  * PlayerMesh renders the player's visual representation and updates movement each frame.
@@ -143,6 +144,12 @@ function GameCanvas() {
     }
   });
 
+  // Extract player health from player ref, fallback to 100 if unavailable
+  const health =
+    playerRef && playerRef.player && playerRef.player.current
+      ? playerRef.player.current.health || 100
+      : 100;
+
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#1a202c" }}>
       <Canvas
@@ -177,24 +184,8 @@ function GameCanvas() {
           proj.active ? <ProjectileMesh key={proj.id} projectile={proj} /> : null
         )}
       </Canvas>
-      {/* Simple HUD for score */}
-      <div
-        style={{
-          position: "absolute",
-          top: 18,
-          left: 18,
-          color: "#fff",
-          fontWeight: 700,
-          fontSize: 22,
-          textShadow: "0 2px 10px #000",
-          pointerEvents: "none",
-          letterSpacing: ".03em",
-          zIndex: 10,
-          userSelect: "none",
-        }}
-      >
-        Score: {score}
-      </div>
+      {/* Modern HUD overlay */}
+      <HUD score={score} health={health} status={""} />
     </div>
   );
 }
