@@ -1,7 +1,8 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { usePlayerControls } from "../game/player";
 import { createNPCs, NPC_STATE } from "../game/npc";
+import { ShootingManager, getPlayerAimDirection } from "../game/shooting";
 
 /**
  * PlayerMesh renders the player's visual representation and updates movement each frame.
@@ -27,15 +28,36 @@ function PlayerMesh({ playerRef }) {
 }
 
 /**
+ * ProjectileMesh renders a single projectile (e.g. a bullet or orb)
+ */
+function ProjectileMesh({ projectile }) {
+  // Mesh ref for visual sync
+  const meshRef = useRef();
+  useEffect(() => {
+    projectile.meshRef = meshRef.current;
+    if (meshRef.current)
+      meshRef.current.position.set(...projectile.position);
+  }, [projectile]);
+  if (!projectile.active) return null;
+  // Appear as a glowing small sphere
+  return (
+    <mesh ref={meshRef} position={projectile.position} castShadow receiveShadow>
+      <sphereGeometry args={[0.15, 12, 12]} />
+      <meshStandardMaterial color="#61dafb" emissive="#61dafb" emissiveIntensity={0.8} />
+    </mesh>
+  );
+}
+
+/**
  * NPCMesh renders a single NPC in the scene and updates its mesh reference for position sync.
+ * Now will skip if npc.dead=true
  */
 function NPCMesh({ npc }) {
-  // Use a local ref to store the mesh, link it to npc instance for .update()
   const meshRef = useRef();
   useEffect(() => {
     npc.meshRef = meshRef.current;
   }, [npc]);
-  // Choose color by state for visualization
+  if (npc.dead) return null;
   let color = npc.color;
   if (npc.state === NPC_STATE.CHASE) color = "#ecc94b"; // yellow for chase
   if (npc.state === NPC_STATE.ATTACK) color = "#e53e3e"; // accent for attack
@@ -50,21 +72,14 @@ function NPCMesh({ npc }) {
 
 /**
  * Handles NPC AI updates and rendering within the React scene.
+ * Accepts an optional onUpdate callback to inform parent of state changes.
  */
-function NPCController({ playerRef }) {
-  // Initialize NPCs only once for the session
-  const npcsRef = useRef(null);
-  if (!npcsRef.current) {
-    // Spawn some NPCs spread across the plane
-    npcsRef.current = createNPCs(6, [0, 1, 0], 16);
-  }
-  const npcs = npcsRef.current;
-
-  // Update all NPCs every frame
+function NPCController({ playerRef, npcs, onUpdate }) {
   useFrame((_, delta) => {
     if (!playerRef?.player?.current) return;
     const playerPos = playerRef.player.current.position;
     npcs.forEach((npc) => npc.update(delta, playerPos));
+    if (onUpdate) onUpdate();
   });
 
   return (
@@ -76,17 +91,57 @@ function NPCController({ playerRef }) {
   );
 }
 
-// PUBLIC_INTERFACE
 /**
- * GameCanvas sets up the 3D scene, including player controls and NPCs, using react-three-fiber.
- * - PerspectiveCamera (fov 60, position set back and above)
- * - Lighting: ambient + directional with shadow
- * - Ground plane (large, gray)
- * - Player mesh using WASD & mouse for movement & aiming
- * - NPCs with basic AI behaviors and colored state
+ * GameCanvas sets up the 3D scene, including player controls, projectiles, and NPCs, using react-three-fiber.
+ * Now implements:
+ *  - Mouse shooting with projectiles
+ *  - Projectile movement and rendering
+ *  - Collision detection with NPCs (NPCs destroyed on hit, score updated)
+ *  - Player/NPC updates as before
  */
 function GameCanvas() {
   const playerRef = usePlayerControls();
+
+  // Use refs/state for NPCs, projectiles, and shooting manager
+  const [score, setScore] = useState(0);
+
+  // Spawn NPCs once
+  const npcsRef = useRef(null);
+  if (!npcsRef.current) {
+    npcsRef.current = createNPCs(6, [0, 1, 0], 16);
+  }
+  const npcs = npcsRef.current;
+
+  // One shooting manager for the session
+  const shootingManagerRef = useRef(null);
+  if (!shootingManagerRef.current) {
+    shootingManagerRef.current = new ShootingManager();
+  }
+  const shootingManager = shootingManagerRef.current;
+
+  // Mouse handling for firing - click shoots
+  useEffect(() => {
+    function handleMouseDown(e) {
+      if (e.button !== 0) return; // left mouse only
+      const player = playerRef.player.current;
+      // Use getPlayerAimDirection for now - movement-based aiming
+      const aimDir = getPlayerAimDirection(player);
+      // Place projectile at player's current position
+      const shot = shootingManager.shoot([...player.position], aimDir, performance.now() / 1000);
+      // gun sound or muzzle flash can be added here
+    }
+    window.addEventListener("mousedown", handleMouseDown);
+    return () => window.removeEventListener("mousedown", handleMouseDown);
+  }, [playerRef, shootingManager]);
+
+  // Master frame update for projectiles and collision with NPCs
+  useFrame((_, delta) => {
+    // Update projectiles & collision
+    const killed = shootingManager.update(delta, npcs);
+    if (killed && killed.length > 0) {
+      setScore((prev) => prev + killed.length);
+    }
+  });
 
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#1a202c" }}>
@@ -115,9 +170,31 @@ function GameCanvas() {
         </mesh>
         {/* Player mesh with controls */}
         <PlayerMesh playerRef={playerRef} />
-        {/* NPCs with AI */}
-        <NPCController playerRef={playerRef} />
+        {/* NPCs with AI & removal if dead */}
+        <NPCController playerRef={playerRef} npcs={npcs} />
+        {/* Projectiles rendering */}
+        {shootingManager.projectiles.map((proj) =>
+          proj.active ? <ProjectileMesh key={proj.id} projectile={proj} /> : null
+        )}
       </Canvas>
+      {/* Simple HUD for score */}
+      <div
+        style={{
+          position: "absolute",
+          top: 18,
+          left: 18,
+          color: "#fff",
+          fontWeight: 700,
+          fontSize: 22,
+          textShadow: "0 2px 10px #000",
+          pointerEvents: "none",
+          letterSpacing: ".03em",
+          zIndex: 10,
+          userSelect: "none",
+        }}
+      >
+        Score: {score}
+      </div>
     </div>
   );
 }
