@@ -1,47 +1,44 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
-import './App.css';
+import React, { useState, useEffect } from "react";
+import "./App.css";
+import GameCanvas from "./components/GameCanvas";
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * App is the main entry point. Renders the full game canvas and
+ * manages theme at the document level.
+ * - GameCanvas always fills the viewport.
+ * - Theme toggle is always accessible and overlays atop all game UI.
+ */
 function App() {
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState("light");
 
-  // Effect to apply theme to document element
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute("data-theme", theme);
   }, [theme]);
 
   // PUBLIC_INTERFACE
   const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
+    setTheme((prev) => (prev === "light" ? "dark" : "light"));
   };
 
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="App" style={{ width: "100vw", height: "100vh", position: "relative" }}>
+      {/* Theme toggle overlays the top right, always accessible */}
+      <button
+        className="theme-toggle"
+        onClick={toggleTheme}
+        aria-label={`Switch to ${theme === "light" ? "dark" : "light"} mode`}
+        style={{
+          position: "fixed",
+          top: 20,
+          right: 20,
+          zIndex: 2000,
+        }}
+      >
+        {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+      </button>
+      {/* Core game + overlays handled by GameCanvas */}
+      <GameCanvas />
     </div>
   );
 }
