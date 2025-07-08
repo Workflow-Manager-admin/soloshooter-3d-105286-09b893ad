@@ -37,21 +37,5 @@
   "devDependencies": {
     "cross-env": "^7.0.3",
     "patch-package": "^8.0.0"
-  },
-  "resolutions": {
-    "three": "^0.152.2"
-  },
-  "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject",
-    "postinstall": "npx --yes patch-package || true"
-  },
-  "browser": {
-    "three-mesh-bvh": false
-  },
-  "overrides": {
-    "three-mesh-bvh": false
   }
 }
