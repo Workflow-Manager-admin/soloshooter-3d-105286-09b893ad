@@ -6,6 +6,8 @@
  */
 
 import * as THREE from "three";
+// If BatchedMesh is needed in this file, import it ONLY from 'three-mesh-bvh':
+// import { BatchedMesh } from 'three-mesh-bvh';
 
 /** NPC STATES */
 export const NPC_STATE = {

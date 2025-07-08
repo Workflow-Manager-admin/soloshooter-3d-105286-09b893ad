@@ -7,6 +7,8 @@ import HUD from "./HUD";
 import Menu from "./Menu";
 import LoadingScreen from "./LoadingScreen";
 import * as THREE from "three";
+// If BatchedMesh is to be used, always import like this:
+/// import { BatchedMesh } from 'three-mesh-bvh';
 
 /**
  * PUBLIC_INTERFACE
