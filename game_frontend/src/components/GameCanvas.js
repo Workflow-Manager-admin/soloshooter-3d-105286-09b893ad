@@ -532,8 +532,10 @@ function GameCanvas() {
     /**
      * PUBLIC_INTERFACE
      * handleMouseDownWithRaycast
-     * Handles mouse click for shooting. Uses camera raycast to detect intersection with ONLY the target board.
-     * Score is only added if the 3D ray passes through the target board mesh. Otherwise no score.
+     * Handles mouse click for shooting:
+     * - Only increments score/feedback if mouse ray directly hits the visible target board mesh.
+     * - Plays shoot sound on all left clicks, but only gives score/hit feedback on a true hit.
+     * - Does NOTHING (no sound, no feedback, no errors) for background or off-board clicks.
      */
     function handleMouseDown(e) {
       if (gameState !== "playing") return;
@@ -550,8 +552,7 @@ function GameCanvas() {
         y: -((e.clientY - rect.top) / rect.height) * 2 + 1,
       };
 
-      // Use react-three-fiber's Three.js context to get scene/camera
-      // NOTE: create a temp canvas context for raycast, fetch needed objects
+      // Use react-three-fiber's Three.js context to get current camera and scene
       const threeCtx = window._r3f ? window._r3f.root?.getState?.() : null;
       let camera, scene;
       if (threeCtx) {
@@ -562,8 +563,7 @@ function GameCanvas() {
         return;
       }
 
-      // Find the current target board mesh in the Three.js scene
-      // Boards are named or can search for mesh with name 'TargetBoard'
+      // Find the ONLY currently visible target board mesh (should be exactly 1)
       let targetBoardMesh = null;
       scene.traverse((obj) => {
         if (
@@ -575,25 +575,29 @@ function GameCanvas() {
         }
       });
       if (!targetBoardMesh) {
-        // No target: do nothing, no errors, not even a miss
+        // No visible board right now; clicks do nothing.
         return;
       }
 
-      // Raycast from camera through mouse pointer
+      // Raycast from camera through mouse pointer to check intersection with board mesh
       const raycaster = new THREE.Raycaster();
       raycaster.setFromCamera(mouse, camera);
 
-      // Intersect with just the current target board
+      // Only test against current target board mesh (should return 0 or 1)
       const intersects = raycaster.intersectObject(targetBoardMesh, false);
 
-      sound.playShoot();
-
-      // If ray directly hit board mesh
+      // Only do hit logic if raycast hit detected
       if (camera && camera.position && intersects && intersects.length > 0) {
-        // Visual feedback is always shown when user hits the board
-        visualShoot([camera.position.x, camera.position.y, camera.position.z], raycaster.ray.direction.toArray());
+        // Animate projectile visual always if on-target (for realism)
+        visualShoot(
+          [camera.position.x, camera.position.y, camera.position.z],
+          raycaster.ray.direction.toArray()
+        );
 
-        // Get board position & intersection for scoring
+        // Play shoot sound ONLY if actually hit a board
+        sound.playShoot();
+
+        // Get world position of target board's center and where the ray hit
         const boardWorldPos = new THREE.Vector3();
         targetBoardMesh.getWorldPosition(boardWorldPos);
 
@@ -602,7 +606,7 @@ function GameCanvas() {
         const dy = hit.y - boardWorldPos.y;
         const distanceToCenter = Math.sqrt(dx * dx + dy * dy);
 
-        // Only increment score (and increase shot count) if actually on board (outer ring or better)
+        // Only increment score/feedback if truly inside hit area (outer ring or better)
         if (distanceToCenter < 0.75) {
           setShots((shots) => shots + 1);
           if (distanceToCenter < 0.21) {
@@ -615,16 +619,20 @@ function GameCanvas() {
             sound.playHit();
             showHitScoreFeedback("+6");
             setTimeout(() => nextTarget(), 300);
-          } else {
+          } else { // Outer ring
             setScore((score) => score + 3);
             sound.playHit();
             showHitScoreFeedback("+3");
             setTimeout(() => nextTarget(), 340);
           }
         }
-        // If ray hit the mesh but not within 0.75, it's a miss, don't do anything: do not show "Miss!" error.
+        // IMPORTANT: If you hit mesh but not within outermost ring,
+        // do NOTHING (no message, no miss feedback) and do not increment the shot count.
+        // Silent no-response is UX correct here.
+      } else {
+        // Missed: Raycast hit nothing (background/ground/sky or off-target). NO FEEDBACK/ERROR/SFX.
+        // *Do not* play sound, increment scores, or show miss message.
       }
-      // If ray didn't hit the mesh, do nothing (not even miss feedback).
     }
 
     window.addEventListener("mousedown", handleMouseDown);
