@@ -558,8 +558,7 @@ function GameCanvas() {
         camera = threeCtx.camera;
         scene = threeCtx.scene;
       } else {
-        // fallback: access via react-three-fiber internals (unsafe), skip scoring if unavailable
-        showHitScoreFeedback("Technical error!");
+        // Silent fail: don't show technical errors, just do nothing
         return;
       }
 
@@ -576,7 +575,7 @@ function GameCanvas() {
         }
       });
       if (!targetBoardMesh) {
-        showHitScoreFeedback("No target?");
+        // No target: do nothing, no errors, not even a miss
         return;
       }
 
@@ -588,53 +587,44 @@ function GameCanvas() {
       const intersects = raycaster.intersectObject(targetBoardMesh, false);
 
       sound.playShoot();
-      // Simulate a visual projectile path for feedback (rendered visually)
-      // Ray is camera → board, so origin/direction from camera
+
+      // If ray directly hit board mesh
       if (camera && camera.position && intersects && intersects.length > 0) {
-        // Visual feedback
+        // Visual feedback is always shown when user hits the board
         visualShoot([camera.position.x, camera.position.y, camera.position.z], raycaster.ray.direction.toArray());
-        // For scoring mechanic, aim precisely at where the ray hits
-        // For precise scoring, pass in actual intersection point (the ray passed through the target disc)
-        // Fake a projectile from camera, but for actual hit/score, use previous intersection code for fairness
-        // Calculate if center, mid, or outer ring (re-use logic)
-        // Get target board "world" position
+
+        // Get board position & intersection for scoring
         const boardWorldPos = new THREE.Vector3();
         targetBoardMesh.getWorldPosition(boardWorldPos);
 
-        // Get intersection point of ray with the board's Z plane (assume always upright)
-        // Since user hit the mesh, use distance to center in XY (board normal is Z)
         const hit = intersects[0].point;
         const dx = hit.x - boardWorldPos.x;
         const dy = hit.y - boardWorldPos.y;
         const distanceToCenter = Math.sqrt(dx * dx + dy * dy);
 
-        // Simulate projectile path for actual scoring feedback by calling the old scoring rules directly:
-        if (distanceToCenter < 0.21) {
+        // Only increment score (and increase shot count) if actually on board (outer ring or better)
+        if (distanceToCenter < 0.75) {
           setShots((shots) => shots + 1);
-          setScore((score) => score + 10);
-          sound.playHit();
-          showHitScoreFeedback("Bullseye! +10");
-          setTimeout(() => nextTarget(), 290);
-        } else if (distanceToCenter < 0.42) {
-          setShots((shots) => shots + 1);
-          setScore((score) => score + 6);
-          sound.playHit();
-          showHitScoreFeedback("+6");
-          setTimeout(() => nextTarget(), 300);
-        } else if (distanceToCenter < 0.75) {
-          setShots((shots) => shots + 1);
-          setScore((score) => score + 3);
-          sound.playHit();
-          showHitScoreFeedback("+3");
-          setTimeout(() => nextTarget(), 340);
-        } else {
-          setShots((shots) => shots + 1);
-          showHitScoreFeedback("Miss!");
+          if (distanceToCenter < 0.21) {
+            setScore((score) => score + 10);
+            sound.playHit();
+            showHitScoreFeedback("Bullseye! +10");
+            setTimeout(() => nextTarget(), 290);
+          } else if (distanceToCenter < 0.42) {
+            setScore((score) => score + 6);
+            sound.playHit();
+            showHitScoreFeedback("+6");
+            setTimeout(() => nextTarget(), 300);
+          } else {
+            setScore((score) => score + 3);
+            sound.playHit();
+            showHitScoreFeedback("+3");
+            setTimeout(() => nextTarget(), 340);
+          }
         }
-      } else {
-        // Did not hit the board at all: no score or shot
-        showHitScoreFeedback("Miss!");
+        // If ray hit the mesh but not within 0.75, it's a miss, don't do anything: do not show "Miss!" error.
       }
+      // If ray didn't hit the mesh, do nothing (not even miss feedback).
     }
 
     window.addEventListener("mousedown", handleMouseDown);
