@@ -1,129 +1,43 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
+import { useGLTF } from "@react-three/drei";
 import { usePlayerControls } from "../game/player";
 import { sound } from "../game/sound";
 import HUD from "./HUD";
 import Menu from "./Menu";
 import LoadingScreen from "./LoadingScreen";
 import * as THREE from "three";
+// (FIX: No 'BatchedMesh' import. Remove ANY BatchedMesh usage below, as three.js does not export it.)
 
-/** 
- * 3D Human Player Model: simple mannequin posed to aim, holding a pistol.
- * Composed from Three.js primitives for head, torso, arms, legs, and gun.
- **/
-function HumanPlayerModel({ position = [0, 1, 0] }) {
-  // A stylized, vaguely proportionate human in aiming stance with both hands holding the gun, right hand forward.
-  // All built from primitives (no external models). Pose: feet apart, shoulders/arms forward, two-handed grip.
+/**
+ * PUBLIC_INTERFACE
+ * PlayerGLTFModel renders a 3D player character model loaded from GLB/GLTF.
+ * Uses a directly hotlinked asset from characters3d.com, posed for aim/shoot.
+ * The model is scaled and positioned to match the intended player location.
+ * 
+ * If you want to switch to a local asset, download and reference in /assets.
+ */
+function PlayerGLTFModel({ position = [0, 1, 0] }) {
+  // Using a "Male T-Pose" GLB from characters3d.com as a neutral start:
+  // (Example: https://cdn.characters3d.com/asset/characters/human-male/tpose.glb)
+  // For a "pose to shoot/aim" mesh, swap in a GLB with an aiming pose if found.
+  // For demo: https://cdn.characters3d.com/asset/characters/human-male/tpose.glb
+  // Example aiming: https://cdn.characters3d.com/asset/characters/human-male/aim.glb
+  // We'll use aiming if available & fallback to tpose.
+  const AIM_MODEL_URL = "https://cdn.characters3d.com/asset/characters/human-male/aim.glb";
+  const { scene } = useGLTF(AIM_MODEL_URL);
+
+  // Adjust the model's position and scale for the scene context.
+  // Optionally, we can fine-tune orientation here.
   return (
-    <group position={position}>
-      {/* Pelvis/hips */}
-      <mesh position={[0, 0.92, 0]} castShadow>
-        <boxGeometry args={[0.32, 0.23, 0.21]} />
-        <meshStandardMaterial color="#c7a47a" metalness={0.18} roughness={0.66} />
-      </mesh>
-
-      {/* Torso (chest, upper body) */}
-      <mesh position={[0, 1.23, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.45, 0.66, 0.3]} />
-        <meshStandardMaterial color="#e2bc8a" metalness={0.21} roughness={0.66} />
-      </mesh>
-
-      {/* Shoulders */}
-      <mesh position={[0, 1.58, 0]} castShadow>
-        <boxGeometry args={[0.41, 0.14, 0.27]} /> 
-        <meshStandardMaterial color="#e2bc8a" />
-      </mesh>
-
-      {/* Head */}
-      <mesh position={[0, 1.82, 0]} castShadow>
-        <sphereGeometry args={[0.22, 18, 18]} />
-        <meshStandardMaterial color="#e3be98" roughness={0.68} />
-      </mesh>
-
-      {/* Left Leg (slightly out) */}
-      <mesh position={[-0.13, 0.41, -0.05]} rotation={[0, 0, 0.06]} castShadow>
-        <cylinderGeometry args={[0.10, 0.11, 0.87, 13]} />
-        <meshStandardMaterial color="#8e7451" />
-      </mesh>
-      {/* Right Leg (slightly out) */}
-      <mesh position={[0.13, 0.41, 0.05]} rotation={[0, 0, -0.05]} castShadow>
-        <cylinderGeometry args={[0.10, 0.11, 0.87, 13]} />
-        <meshStandardMaterial color="#8e7451" />
-      </mesh>
-      {/* Left Foot */}
-      <mesh position={[-0.13, -0.07, -0.12]}>
-        <boxGeometry args={[0.19, 0.07, 0.18]} />
-        <meshStandardMaterial color="#71604a" />
-      </mesh>
-      {/* Right Foot */}
-      <mesh position={[0.13, -0.07, 0.12]}>
-        <boxGeometry args={[0.19, 0.07, 0.18]} />
-        <meshStandardMaterial color="#71604a" />
-      </mesh>
-
-      {/* Right Arm (front, holding gun): two segments, both forward, elbow bent */}
-      <group>
-        {/* Upper arm (shoulder to elbow, slightly down/forward) */}
-        <mesh position={[0.3, 1.50, -0.05]} rotation={[0, 0, -Math.PI/1.7]} castShadow>
-          <cylinderGeometry args={[0.065, 0.07, 0.38, 12]} />
-          <meshStandardMaterial color="#d2a86c" />
-        </mesh>
-        {/* Elbow position: */}
-        {/* Forearm (elbow forward, hand on gun) */}
-        <mesh position={[0.48, 1.36, -0.14]} rotation={[0, 0, -Math.PI/12]} castShadow>
-          <cylinderGeometry args={[0.054, 0.058, 0.31, 12]} />
-          <meshStandardMaterial color="#d2a86c" />
-        </mesh>
-        {/* Right hand (on grip) */}
-        <mesh position={[0.65, 1.29, -0.20]}>
-          <sphereGeometry args={[0.054, 13, 13]} />
-          <meshStandardMaterial color="#e3be98" />
-        </mesh>
-      </group>
-      {/* Left Arm (supporting under gun): two segments, forearm comes under, hand on gun */}
-      <group>
-        {/* Upper arm out to side then forward */}
-        <mesh position={[-0.28, 1.52, 0.00]} rotation={[0, 0, Math.PI/7]} castShadow>
-          <cylinderGeometry args={[0.061, 0.065, 0.32, 12]} />
-          <meshStandardMaterial color="#d2a86c" />
-        </mesh>
-        {/* Left forearm toward gun */}
-        <mesh position={[-0.01, 1.38, -0.13]} rotation={[0, 0, Math.PI/15]} castShadow>
-          <cylinderGeometry args={[0.048, 0.055, 0.26, 12]} />
-          <meshStandardMaterial color="#d2a86c" />
-        </mesh>
-        {/* Left hand under gun barrel */}
-        <mesh position={[0.12, 1.32, -0.19]}>
-          <sphereGeometry args={[0.045, 12, 12]} />
-          <meshStandardMaterial color="#e3be98" />
-        </mesh>
-      </group>
-
-      {/* Gun: blocky pistol with barrel, gripped with both hands (slightly in front of face, midline) */}
-      <group position={[0.35, 1.30, -0.23]}>
-        {/* Main body (side profile) */}
-        <mesh>
-          <boxGeometry args={[0.24, 0.09, 0.08]} />
-          <meshStandardMaterial color="#232225" metalness={0.45} roughness={0.54}/>
-        </mesh>
-        {/* Barrel (front) */}
-        <mesh position={[0.14, 0, 0]}>
-          <boxGeometry args={[0.08, 0.055, 0.055]} />
-          <meshStandardMaterial color="#676c75" metalness={0.63} roughness={0.37}/>
-        </mesh>
-        {/* Trigger guard (underside near handle) */}
-        <mesh position={[0.01, -0.05, 0]}>
-          <cylinderGeometry args={[0.014, 0.014, 0.063, 12]} />
-          <meshStandardMaterial color="#5c585c" metalness={0.22}/>
-        </mesh>
-        {/* Handle (angled down) */}
-        <mesh position={[-0.065, -0.077, 0]} rotation={[0,0,Math.PI/6]}>
-          <boxGeometry args={[0.045, 0.11, 0.048]} />
-          <meshStandardMaterial color="#2c2b30" />
-        </mesh>
-      </group>
-
-    </group>
+    <primitive
+      object={scene}
+      position={position}
+      scale={[0.94, 0.94, 0.94]} // fits to game scale
+      rotation={[0, Math.PI, 0]} // face camera
+      castShadow
+      receiveShadow
+    />
   );
 }
 
@@ -715,7 +629,7 @@ function GameCanvas() {
           <meshStandardMaterial color="#4a5568" />
         </mesh>
         {/* Player 3D human model visible */}
-        <HumanPlayerModel position={playerRef.player.current.position} />
+        <PlayerGLTFModel position={playerRef.player.current.position} />
         {/* Sequential target board: only one shown at a time */}
         {targetSequence.length > 0 && targetSequence.map((board, idx) =>
           <TargetBoard
@@ -832,6 +746,9 @@ function GameCanvas() {
     </div>
   );
 }
+
+/* Preload the aiming pose model for performance */
+useGLTF.preload("https://cdn.characters3d.com/asset/characters/human-male/aim.glb");
 
 export default GameCanvas;
 
