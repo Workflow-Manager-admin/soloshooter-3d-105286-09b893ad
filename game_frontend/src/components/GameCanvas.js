@@ -7,7 +7,6 @@ import HUD from "./HUD";
 import Menu from "./Menu";
 import LoadingScreen from "./LoadingScreen";
 import * as THREE from "three";
-// (FIX APPLIED: 'BatchedMesh' does NOT exist in three.js. Confirmed: NO BatchedMesh usage in this file. If referenced elsewhere, remove those references.)
 
 /**
  * PUBLIC_INTERFACE
