@@ -527,34 +527,129 @@ function GameCanvas() {
     nextTarget
   });
 
-  // Click handler for shooting
+  // Click handler for shooting - refactored to do raycast from camera through mouse
   useEffect(() => {
+    /**
+     * PUBLIC_INTERFACE
+     * handleMouseDownWithRaycast
+     * Handles mouse click for shooting. Uses camera raycast to detect intersection with ONLY the target board.
+     * Score is only added if the 3D ray passes through the target board mesh. Otherwise no score.
+     */
     function handleMouseDown(e) {
       if (gameState !== "playing") return;
       if (e.button !== 0) return;
-      // Calculate aim: ray from player to the current target board, or forward if none.
-      const player = playerRef.player.current;
-      // For mouse-based aim, raycast from camera through mouse
-      const aimOrigin = [player.position[0], 1.4, player.position[2]];
-      let aimDir = [0, 0, -1];
-      // If a target is visible, aim toward its center
-      const target = targetSequence[currentTargetIndex];
-      if (target) {
-        const dx = target.position[0] - player.position[0];
-        const dy = target.position[1] - 1.4;
-        const dz = target.position[2] - player.position[2];
-        const mag = Math.sqrt(dx*dx + dy*dy + dz*dz);
-        if (mag > 0.001) {
-          aimDir = [dx/mag, dy/mag, dz/mag];
-        }
+
+      // Get canvas dom and mouse pos relative to it
+      const canvas = document.querySelector("canvas");
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+
+      // Calculate normalized device coordinates (NDC) for mouse position
+      const mouse = {
+        x: ((e.clientX - rect.left) / rect.width) * 2 - 1,
+        y: -((e.clientY - rect.top) / rect.height) * 2 + 1,
+      };
+
+      // Use react-three-fiber's Three.js context to get scene/camera
+      // NOTE: create a temp canvas context for raycast, fetch needed objects
+      const threeCtx = window._r3f ? window._r3f.root?.getState?.() : null;
+      let camera, scene;
+      if (threeCtx) {
+        camera = threeCtx.camera;
+        scene = threeCtx.scene;
+      } else {
+        // fallback: access via react-three-fiber internals (unsafe), skip scoring if unavailable
+        showHitScoreFeedback("Technical error!");
+        return;
       }
+
+      // Find the current target board mesh in the Three.js scene
+      // Boards are named or can search for mesh with name 'TargetBoard'
+      let targetBoardMesh = null;
+      scene.traverse((obj) => {
+        if (
+          obj.type === "Mesh" &&
+          obj.name === "TargetBoard" &&
+          obj.visible // invisible boards shouldn't be hit
+        ) {
+          targetBoardMesh = obj;
+        }
+      });
+      if (!targetBoardMesh) {
+        showHitScoreFeedback("No target?");
+        return;
+      }
+
+      // Raycast from camera through mouse pointer
+      const raycaster = new THREE.Raycaster();
+      raycaster.setFromCamera(mouse, camera);
+
+      // Intersect with just the current target board
+      const intersects = raycaster.intersectObject(targetBoardMesh, false);
+
       sound.playShoot();
-      visualShoot(aimOrigin, aimDir);
-      shoot(aimOrigin, aimDir);
+      // Simulate a visual projectile path for feedback (rendered visually)
+      // Ray is camera → board, so origin/direction from camera
+      if (camera && camera.position && intersects && intersects.length > 0) {
+        // Visual feedback
+        visualShoot([camera.position.x, camera.position.y, camera.position.z], raycaster.ray.direction.toArray());
+        // For scoring mechanic, aim precisely at where the ray hits
+        // For precise scoring, pass in actual intersection point (the ray passed through the target disc)
+        // Fake a projectile from camera, but for actual hit/score, use previous intersection code for fairness
+        // Calculate if center, mid, or outer ring (re-use logic)
+        // Get target board "world" position
+        const boardWorldPos = new THREE.Vector3();
+        targetBoardMesh.getWorldPosition(boardWorldPos);
+
+        // Get intersection point of ray with the board's Z plane (assume always upright)
+        // Since user hit the mesh, use distance to center in XY (board normal is Z)
+        const hit = intersects[0].point;
+        const dx = hit.x - boardWorldPos.x;
+        const dy = hit.y - boardWorldPos.y;
+        const distanceToCenter = Math.sqrt(dx * dx + dy * dy);
+
+        // Simulate projectile path for actual scoring feedback by calling the old scoring rules directly:
+        if (distanceToCenter < 0.21) {
+          setShots((shots) => shots + 1);
+          setScore((score) => score + 10);
+          sound.playHit();
+          showHitScoreFeedback("Bullseye! +10");
+          setTimeout(() => nextTarget(), 290);
+        } else if (distanceToCenter < 0.42) {
+          setShots((shots) => shots + 1);
+          setScore((score) => score + 6);
+          sound.playHit();
+          showHitScoreFeedback("+6");
+          setTimeout(() => nextTarget(), 300);
+        } else if (distanceToCenter < 0.75) {
+          setShots((shots) => shots + 1);
+          setScore((score) => score + 3);
+          sound.playHit();
+          showHitScoreFeedback("+3");
+          setTimeout(() => nextTarget(), 340);
+        } else {
+          setShots((shots) => shots + 1);
+          showHitScoreFeedback("Miss!");
+        }
+      } else {
+        // Did not hit the board at all: no score or shot
+        showHitScoreFeedback("Miss!");
+      }
     }
+
     window.addEventListener("mousedown", handleMouseDown);
     return () => window.removeEventListener("mousedown", handleMouseDown);
-  }, [gameState, playerRef, targetSequence, currentTargetIndex, shoot, visualShoot]);
+  }, [
+    gameState,
+    playerRef,
+    targetSequence,
+    currentTargetIndex,
+    shoot,
+    visualShoot,
+    setScore,
+    setShots,
+    nextTarget
+  ]);
 
   // Keyboard shortcuts for pause/restart
   useEffect(() => {
