@@ -5,7 +5,8 @@
  */
 
 import { useRef, useEffect, useCallback } from "react";
-// If BatchedMesh usage is added, it should be imported ONLY from 'three-mesh-bvh'
+ // BatchedMesh: If used, import ONLY from 'three-mesh-bvh'.
+// (No BatchedMesh import attempted here.)
 
 /**
  * Defines the shape of the player state.

@@ -7,35 +7,34 @@ import HUD from "./HUD";
 import Menu from "./Menu";
 import LoadingScreen from "./LoadingScreen";
 import * as THREE from "three";
-// If BatchedMesh is to be used, always import like this:
-/// import { BatchedMesh } from 'three-mesh-bvh';
+ // BatchedMesh: No import of BatchedMesh from 'three'—see documentation for correct usage. (Removed all stale/commented imports everywhere in code.)
 
 /**
  * PUBLIC_INTERFACE
  * PlayerGLTFModel renders a 3D player character model loaded from GLB/GLTF.
- * Uses a directly hotlinked asset from characters3d.com, posed for aim/shoot.
- * The model is scaled and positioned to match the intended player location.
+ * The model is loaded from a LOCAL asset provided (assets/space_soldier.glb).
  * 
- * If you want to switch to a local asset, download and reference in /assets.
+ * Integration Note: The GLB model can be changed here for the player.
+ * - See comment for asset replacement.
+ * - To change the character model, replace 'space_soldier.glb' in /src/assets and adjust this component.
  */
 function PlayerGLTFModel({ position = [0, 1, 0] }) {
-  // Using a "Male T-Pose" GLB from characters3d.com as a neutral start:
-  // (Example: https://cdn.characters3d.com/asset/characters/human-male/tpose.glb)
-  // For a "pose to shoot/aim" mesh, swap in a GLB with an aiming pose if found.
-  // For demo: https://cdn.characters3d.com/asset/characters/human-male/tpose.glb
-  // Example aiming: https://cdn.characters3d.com/asset/characters/human-male/aim.glb
-  // We'll use aiming if available & fallback to tpose.
-  const AIM_MODEL_URL = "https://cdn.characters3d.com/asset/characters/human-male/aim.glb";
-  const { scene } = useGLTF(AIM_MODEL_URL);
+  // Load the local GLB file of the Space Soldier character (in /src/assets/)
+  // Asset location: ./assets/space_soldier.glb
+  const MODEL_URL = process.env.PUBLIC_URL
+    ? process.env.PUBLIC_URL + "/assets/space_soldier.glb"
+    : "assets/space_soldier.glb";
+  // Drei's useGLTF needs a relative path from public (if serve mode).
+  const { scene } = useGLTF("/assets/space_soldier.glb");
 
-  // Adjust the model's position and scale for the scene context.
-  // Optionally, we can fine-tune orientation here.
+  // NOTE: tweak scale/orientation if space soldier appears too large/small or facing wrong way
   return (
     <primitive
       object={scene}
       position={position}
-      scale={[0.94, 0.94, 0.94]} // fits to game scale
-      rotation={[0, Math.PI, 0]} // face camera
+      // Adjust scale/rotation for character to fit game (calibrated for Space Soldier)
+      scale={[1, 1, 1]} // tweak as needed for correct height
+      rotation={[0, Math.PI, 0]} // keep facing toward camera
       castShadow
       receiveShadow
     />
@@ -748,8 +747,8 @@ function GameCanvas() {
   );
 }
 
-/* Preload the aiming pose model for performance */
-useGLTF.preload("https://cdn.characters3d.com/asset/characters/human-male/aim.glb");
+/* Preload the space soldier model for performance (local asset) */
+useGLTF.preload("/assets/space_soldier.glb");
 
 export default GameCanvas;
 

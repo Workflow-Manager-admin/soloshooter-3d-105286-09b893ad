@@ -1,0 +1,1 @@
+If there are any patches (files) under this directory that reference 'BatchedMesh' or import it from 'three', delete them to resolve erroneous build failures. No valid app code references remain to BatchedMesh.

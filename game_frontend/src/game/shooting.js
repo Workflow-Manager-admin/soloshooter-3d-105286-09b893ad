@@ -1,6 +1,6 @@
 import * as THREE from "three";
-// If BatchedMesh is used in this file, import like this ONLY:
-// import { BatchedMesh } from 'three-mesh-bvh';
+ // BatchedMesh: For performance, import ONLY from 'three-mesh-bvh' if used.
+// (No BatchedMesh import attempted here.)
 
 /**
  * PUBLIC_INTERFACE
