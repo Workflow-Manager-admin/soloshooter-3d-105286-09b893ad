@@ -47,9 +47,9 @@ function HumanPlayerModel({ position = [0, 1, 0] }) {
 }
 
 /** 
- * Target Board
+ * Target Board (supports movement via movingX parameter)
  */
-function TargetBoard({ position, boardId, onHit, visible }) {
+function TargetBoard({ position, boardId, onHit, visible, movingX = 0 }) {
   // Target board centered at `position`, simple circle with bullseye rings
   const meshRef = useRef();
 
@@ -60,8 +60,14 @@ function TargetBoard({ position, boardId, onHit, visible }) {
   }, [boardId]);
 
   if (!visible) return null;
+  // Draw with animated local X offset if present
+  const drawPosition = [
+    position[0] + (movingX || 0),
+    position[1],
+    position[2]
+  ];
   return (
-    <group position={position}>
+    <group position={drawPosition}>
       {/* Board (large) */}
       <mesh ref={meshRef} castShadow receiveShadow name="TargetBoard">
         <cylinderGeometry args={[0.75, 0.75, 0.18, 32]} />
@@ -273,6 +279,25 @@ function GameCanvas() {
   const [hitScoreFeedback, setHitScoreFeedback] = useState("");
   const [showHitScore, setShowHitScore] = useState(false);
 
+  // ===== Target Movement State ====
+  // The offset along the local X axis to apply to the target board for visible movement.
+  const [targetMoveOffset, setTargetMoveOffset] = useState(0);
+  // 1 or -1, determines board's movement direction for bounce effect
+  const [targetDirection, setTargetDirection] = useState(1);
+  // Smooth speed, for gradual transitions
+  const [displayedBoardSpeed, setDisplayedBoardSpeed] = useState(0.16);
+
+  // Returns target board speed based on score (tuned for fun curve)
+  // PUBLIC_INTERFACE
+  function getTargetBoardSpeed(score) {
+    // Base speed: very slow, increases every 5 points, upper cap
+    // Adjust curve as needed for difficulty!
+    const EASY = 0.16;    // at start (barely moves)
+    const MAX = 0.70;     // max speed
+    const curve = Math.min(MAX, EASY + 0.11 * Math.floor(score / 5) + (score / 180));
+    return curve;
+  }
+
   // Reset everything for a new game
   const resetGame = useCallback(() => {
     setScore(0);
@@ -284,6 +309,11 @@ function GameCanvas() {
     setAccuracy(0);
     const newTargets = generateTargetSequence(12 + Math.floor(Math.random() * 6));
     setTargetSequence(newTargets);
+
+    // Reset target movement for visual clarity and fairness
+    setTargetMoveOffset(0);
+    setTargetDirection(Math.random() > 0.5 ? 1 : -1);
+    setDisplayedBoardSpeed(0.16);
 
     if (playerRef && playerRef.player && playerRef.player.current) {
       playerRef.player.current.position = [0, 1, 0];
@@ -330,6 +360,64 @@ function GameCanvas() {
     }, 1000);
     return () => clearInterval(interval);
   }, [gameState, timer]);
+
+  // Animate target board left-right movement (bounces within a range)
+  useEffect(() => {
+    if (gameState !== "playing") {
+      // Reset for visual clarity between rounds/screens.
+      setTargetMoveOffset(0);
+      setDisplayedBoardSpeed(0.16);
+      return;
+    }
+
+    // Range: how far (max) the target can travel from its original X (left/right)
+    const MOVEMENT_RANGE = 1.32; // units (tune for fairness)
+    // For smooth animation
+    let lastFrameTs = performance.now();
+
+    function animateTargetBoard(now) {
+      // Only animate if we have a valid active board
+      if (targetSequence.length === 0) {
+        requestAnimationFrame(animateTargetBoard);
+        return;
+      }
+      // Find which speed we aim for
+      const targetSpeed = getTargetBoardSpeed(score);
+
+      // Smoothly interpolate displayed speed for visual feel
+      setDisplayedBoardSpeed(prev => prev * 0.85 + targetSpeed * 0.15);
+
+      // Delta time calculation (seconds)
+      const dt = Math.min((now - lastFrameTs) / 1000, 0.06);
+      lastFrameTs = now;
+
+      // Move the offset
+      setTargetMoveOffset(prev => {
+        let next = prev + displayedBoardSpeed * dt * targetDirection;
+        // Bounce at range edges:
+        if (next > MOVEMENT_RANGE) {
+          next = MOVEMENT_RANGE;
+          setTargetDirection(-1);
+        } else if (next < -MOVEMENT_RANGE) {
+          next = -MOVEMENT_RANGE;
+          setTargetDirection(1);
+        }
+        return next;
+      });
+
+      // Continue animating if playing
+      if (gameState === "playing" && timer > 0) {
+        requestAnimationFrame(animateTargetBoard);
+      }
+    }
+    // Animation frame entry
+    let raf = requestAnimationFrame(animateTargetBoard);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+    };
+    // Only restart if new board, score, or game state change
+    // eslint-disable-next-line
+  }, [gameState, currentTargetIndex, targetSequence.length, score]);
 
   // Show hit/miss feedback anim
   const showHitScoreFeedback = (msg) => {
@@ -461,6 +549,7 @@ function GameCanvas() {
             position={board.position}
             boardId={board.id}
             visible={idx === currentTargetIndex}
+            movingX={idx === currentTargetIndex ? targetMoveOffset : 0}
           />
         )}
         {/* Projectile mesh visual only (no real projectile collision) */}
@@ -499,3 +588,4 @@ function GameCanvas() {
 }
 
 export default GameCanvas;
+
