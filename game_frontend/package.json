@@ -3,14 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@react-three/drei": "^9.86.7",
-    "@react-three/fiber": "^8.13.7",
+    "@react-three/drei": "9.86.10",
+    "@react-three/fiber": "8.13.7",
     "@supabase/supabase-js": "^2.42.6",
     "howler": "^2.2.4",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-scripts": "^5.0.1",
-    "three": "^0.152.2",
+    "three": "0.152.2",
     "three-stdlib": "2.21.4",
     "zustand": "^4.4.7"
   },
