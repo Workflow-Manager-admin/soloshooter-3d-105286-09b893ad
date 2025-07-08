@@ -3,6 +3,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { usePlayerControls } from "../game/player";
 import { createNPCs, NPC_STATE } from "../game/npc";
 import { ShootingManager, getPlayerAimDirection } from "../game/shooting";
+import { sound } from "../game/sound";
 import HUD from "./HUD";
 import Menu from "./Menu";
 
@@ -148,7 +149,8 @@ function GameCanvas() {
       if (e.button !== 0) return; // left mouse only
       const player = playerRef.player.current;
       const aimDir = getPlayerAimDirection(player);
-      shootingManager.shoot([...player.position], aimDir, performance.now() / 1000);
+      const result = shootingManager.shoot([...player.position], aimDir, performance.now() / 1000);
+      if (result) sound.playShoot();
     }
     window.addEventListener("mousedown", handleMouseDown);
     return () => window.removeEventListener("mousedown", handleMouseDown);
@@ -176,7 +178,13 @@ function GameCanvas() {
     if (isPaused) return;
     // Update projectiles/collision
     const killed = shootingManager.update(delta, npcs);
-    if (killed && killed.length > 0) setScore(prev => prev + killed.length);
+    if (killed && killed.length > 0) {
+      setScore(prev => prev + killed.length);
+      // Play hit sound for each NPC defeated
+      for (let i = 0; i < killed.length; ++i) {
+        sound.playHit();
+      }
+    }
 
     // Simple NPC "attack" stub: any NPC close damages player
     if (playerRef && playerRef.player && playerRef.player.current) {

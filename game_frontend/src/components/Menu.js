@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
+import { sound } from "../game/sound";
 
 /**
  * PUBLIC_INTERFACE
@@ -16,6 +17,21 @@ import React from "react";
  *   <Menu open={isPaused} mode="pause" onResume={resumeGame} onRestart={restartGame} score={score}/>
  */
 function Menu({ open, mode, onResume, onRestart, score, style }) {
+  // Track previous open state to play open/close sounds
+  const prevOpen = useRef(false);
+
+  useEffect(() => {
+    if (open && !prevOpen.current) {
+      // Menu just opened
+      sound.playMenuOpen();
+    }
+    if (!open && prevOpen.current) {
+      // Menu just closed
+      sound.playMenuClose();
+    }
+    prevOpen.current = open;
+  }, [open]);
+
   if (!open) return null;
 
   let title = "";
