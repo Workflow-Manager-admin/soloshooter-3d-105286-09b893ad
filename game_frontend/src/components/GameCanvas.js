@@ -11,28 +11,62 @@ import * as THREE from "three";
  * 3D Human Model Stand-in (simple mannequin, replace with GLTF later if needed)
  **/
 function HumanPlayerModel({ position = [0, 1, 0] }) {
-  // Stylized "mannequin" built from three.js primitives
+  // A stylized 3D human in a "ready-to-shoot" stance, holding a gun with the right arm forward.
+  // Constructed out of THREE.js primitives (boxes/cylinders/spheres).
   return (
     <group position={position}>
+
       {/* Torso */}
       <mesh position={[0, 1.1, 0]} castShadow receiveShadow>
-        <boxGeometry args={[0.5, 1.35, 0.35]} />
-        <meshStandardMaterial color="#e2bc8a" metalness={0.25} roughness={0.6} />
+        <boxGeometry args={[0.5, 1.37, 0.35]} />
+        <meshStandardMaterial color="#e2bc8a" metalness={0.24} roughness={0.60} />
       </mesh>
       {/* Head */}
-      <mesh position={[0, 2.15, 0]} castShadow>
+      <mesh position={[0, 2.17, 0]} castShadow>
         <sphereGeometry args={[0.28, 16, 16]} />
         <meshStandardMaterial color="#e3be98" roughness={0.7} />
       </mesh>
-      {/* Arms */}
-      <mesh position={[-0.43, 1.43, 0]} castShadow>
+      {/* Left Arm - relaxed at side */}
+      <mesh position={[-0.43, 1.43, 0]} rotation={[0, 0, 0.18]} castShadow>
         <cylinderGeometry args={[0.09, 0.09, 0.65, 12]} />
         <meshStandardMaterial color="#d2a86c" />
       </mesh>
-      <mesh position={[ 0.43, 1.43, 0]} castShadow>
-        <cylinderGeometry args={[0.09, 0.09, 0.65, 12]} />
-        <meshStandardMaterial color="#d2a86c" />
-      </mesh>
+      {/* Right Arm - FORWARD, holding gun */}
+      <group>
+        {/* Upper arm angled forward */}
+        <mesh position={[0.48, 1.48, 0]} rotation={[0, 0, -0.84]} castShadow>
+          <cylinderGeometry args={[0.09, 0.09, 0.38, 12]} />
+          <meshStandardMaterial color="#d2a86c" />
+        </mesh>
+        {/* Forearm extended, aiming forward */}
+        <mesh position={[0.77, 1.52, -0.18]} rotation={[0, 0, -0.20]} castShadow>
+          <cylinderGeometry args={[0.085, 0.085, 0.44, 12]} />
+          <meshStandardMaterial color="#d2b37a" />
+        </mesh>
+        {/* Hand */}
+        <mesh position={[1.00, 1.57, -0.32]}>
+          <sphereGeometry args={[0.098, 13, 13]} />
+          <meshStandardMaterial color="#e3be98" />
+        </mesh>
+        {/* Gun - simple black box "pistol" in hand */}
+        <group position={[1.105, 1.58, -0.335]}>
+          {/* Gun body */}
+          <mesh>
+            <boxGeometry args={[0.22, 0.08, 0.09]} />
+            <meshStandardMaterial color="#222225" />
+          </mesh>
+          {/* Gun barrel */}
+          <mesh position={[0.12, 0, 0]}>
+            <boxGeometry args={[0.08, 0.06, 0.06]} />
+            <meshStandardMaterial color="#555" metalness={0.5} />
+          </mesh>
+          {/* Gun trigger guard (tiny half torus, achieved with a cylinder) */}
+          <mesh position={[-0.03, -0.048, 0]}>
+            <cylinderGeometry args={[0.019, 0.019, 0.07, 14]} />
+            <meshStandardMaterial color="#444" />
+          </mesh>
+        </group>
+      </group>
       {/* Legs */}
       <mesh position={[-0.18, 0.45, 0]} castShadow>
         <cylinderGeometry args={[0.11, 0.12, 0.85, 14]} />
