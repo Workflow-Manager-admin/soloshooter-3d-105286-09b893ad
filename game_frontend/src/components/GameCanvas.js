@@ -163,9 +163,17 @@ function GameCanvas() {
     async function preloadAssets() {
       const soundPreloads = [];
       function awaitSoundLoad(howl) {
+        // Prevent hanging for errored Howls. Resolve if loaded or error.
         return new Promise((resolve) => {
+          if (!howl || typeof howl.state !== "function") return resolve();
+          if (howl._srcError) return resolve();
           if (howl.state() === "loaded") return resolve();
-          howl.once("load", resolve);
+          let settled = false;
+          const finish = () => { if (!settled) { settled = true; resolve(); } };
+          howl.once("load", finish);
+          howl.once("loaderror", finish);
+          // Also protect against Howler bugs
+          setTimeout(finish, 1800); // fallback timeout in case event doesn't fire
         });
       }
       if (sound && sound.sounds) {
@@ -175,6 +183,7 @@ function GameCanvas() {
           }
         }
       }
+      // Always allow loading to "finish" after a reasonable minimum
       soundPreloads.push(new Promise((r) => setTimeout(r, 250)));
       await Promise.all(soundPreloads);
       if (!done) {
