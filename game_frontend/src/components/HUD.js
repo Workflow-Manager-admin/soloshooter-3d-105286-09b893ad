@@ -37,28 +37,38 @@ function HUD({ score = 0, health = 100, status }) {
         userSelect: "none",
       }}
     >
-      {/* Top row HUD */}
+      {/* Top HUD Row */}
       <div style={{
         display: "flex",
         flexDirection: "row",
         justifyContent: "flex-start",
         alignItems: "flex-start",
-        padding: 24,
+        padding: "min(4vw, 28px) min(4vw, 28px) 0 min(4vw, 28px)",
       }}>
         {/* Score */}
         <div style={{
-          color: "#fff",
+          color: "var(--accent)",
           fontWeight: 800,
-          fontSize: 28,
+          fontSize: "clamp(1.3rem, 3vw, 2.2rem)",
           letterSpacing: ".045em",
-          textShadow: "0 2px 10px #000, 0 0px 2px #e87a41",
-          background: "rgba(26,32,44,0.72)",
-          borderRadius: 10,
-          padding: "7px 20px 7px 18px",
-          boxShadow: "0 2px 10px #0002",
+          textShadow: "0 2px 12px #0009, 0 0px 3px var(--accent)",
+          background: "var(--hud-glass)",
+          borderRadius: 15,
+          padding: "11px 26px 11px 22px",
+          backdropFilter: "blur(3.5px)",
+          boxShadow: "0 4px 18px #0003",
           minWidth: 110,
+          border: "2.5px solid var(--accent)",
+          filter: "drop-shadow(0 0 8px #e53e3e44)",
         }}>
-          Score: {score}
+          <span className="hud-label" style={{
+            color: "#fafafa",
+            fontWeight: 600,
+            fontSize: "1rem",
+            marginRight: 6,
+            letterSpacing: ".03em"
+          }}>Score:</span>
+          {score}
         </div>
       </div>
       {/* Bottom HUD - Health bar and status */}
@@ -66,71 +76,94 @@ function HUD({ score = 0, health = 100, status }) {
         display: "flex",
         flexDirection: "column",
         alignItems: "flex-start",
-        padding: 24,
-        width: "360px",
-        maxWidth: "90vw",
+        padding: "0 min(4vw, 28px) min(3vw, 24px)",
+        width: "min(98vw, 365px)",
+        maxWidth: "calc(100vw - 16px)",
       }}>
         {/* Health bar */}
         <div>
           <div style={{
-            color: "#fff",
+            color: "#cbd5e1",
             fontWeight: 600,
-            fontSize: 18,
-            letterSpacing: ".025em",
-            textShadow: "0 1px 8px #0008",
+            fontSize: "1rem",
+            letterSpacing: ".015em",
+            textShadow: "0 1px 7px #0008",
             marginBottom: 8,
+            marginLeft: 2,
+            opacity: 0.98
           }}>Health</div>
           <div style={{
-            background: "#232737",
+            background: "linear-gradient(90deg, #232737 68%, #232737cc 100%)",
             borderRadius: 7,
-            width: "240px",
-            height: "20px",
-            boxShadow: "0 1px 6px #0007",
+            width: "min(90vw, 260px)",
+            height: "18px",
+            boxShadow: "0 1px 13px #0008",
             overflow: "hidden",
-            border: "1.5px solid #3a3d4f"
+            border: "2px solid #394057",
+            position: "relative"
           }}>
             <div style={{
               width: `${healthPercent}%`,
               height: "100%",
-              background: barColor,
-              boxShadow: "0 0 7px #1fffce99",
-              transition: "width 0.23s cubic-bezier(.78,.34,.61,1.13),background .21s",
+              background: `linear-gradient(90deg, ${barColor} 80%, #111 120%)`,
+              boxShadow: `0 0 15px ${barColor}aa`,
+              transition: "width 0.25s cubic-bezier(.78,.34,.61,1.13),background .21s",
+              borderTopLeftRadius: 7, borderBottomLeftRadius: 7,
             }} />
-          </div>
-          <div
-            style={{
-              position: "absolute",
-              fontSize: 13,
-              color: "#fff",
-              left: 28,
-              bottom: 36,
-              opacity: 0.8,
-              textShadow: "0 1px 4px #000"
-            }}
-          >
-            {safeHealth}/100
+            <div
+              style={{
+                position: "absolute",
+                right: 12, top: 2,
+                fontSize: 11,
+                color: "#fff",
+                opacity: 0.76,
+                fontWeight: 600,
+                textShadow: "0 2px 6px #000",
+                pointerEvents: "none"
+              }}
+            >
+              {safeHealth}/100
+            </div>
           </div>
         </div>
         {/* Status message, if any */}
         {status && (
           <div
             style={{
-              marginTop: 24,
-              color: "#e87a41",
-              background: "rgba(42,34,24,0.85)",
-              fontSize: 21,
+              marginTop: 23,
+              color: "var(--accent)",
+              background: "rgba(34,30,27,0.86)",
+              fontSize: "clamp(1.0rem, 2.0vw, 1.3rem)",
               fontWeight: 700,
-              borderRadius: 9,
-              padding: "10px 28px",
-              textShadow: "0 2px 8px #0009",
-              letterSpacing: ".04em",
-              boxShadow: "0 1px 6px #0005"
+              borderRadius: 13,
+              padding: "13px 30px",
+              textShadow: "0 2px 9px #000b",
+              letterSpacing: ".03em",
+              boxShadow: "0 3px 14px #000a",
+              border: "2.2px solid var(--accent)",
+              alignSelf: "center",
+              filter: "drop-shadow(0 2.5px 13px #e53e3e42)"
             }}
           >
             {status}
           </div>
         )}
       </div>
+      {/* Global overlay HUD styles */}
+      <style>{`
+        @media (max-width: 700px) {
+          .hud-label { font-size: 0.99rem !important; }
+          div[style*='background: var(--hud-glass)'] {
+            font-size: 4vw;
+            padding: 9px 3vw 9px 3vw !important;
+          }
+          div[style*='border-radius: 7px'] { width: 82vw !important; }
+        }
+        @media (max-width: 420px) {
+          div[style*='background: var(--hud-glass)'] { padding: 7px 3vw !important;}
+          div[style*='width: min(98vw, 365px)'] { width: 98vw !important;}
+        }
+      `}</style>
     </div>
   );
 }

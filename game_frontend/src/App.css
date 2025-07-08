@@ -1,14 +1,23 @@
 /* CSS Variables for Theme Management */
 :root {
-  /* Light theme colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f9fa;
-  --text-primary: #282c34;
-  --text-secondary: #61dafb;
-  --border-color: #e9ecef;
-  --button-bg: #007bff;
-  --button-text: #ffffff;
+  --primary: #1a202c;
+  --secondary: #718096;
+  --accent: #e53e3e;
+  --bg-primary: #1a202c;
+  --bg-secondary: #232737;
+  --ui-overlay: rgba(26, 32, 44, 0.80);
+  --ui-overlay-strong: rgba(34,37,51,0.94);
+  --hud-glass: rgba(28,34,42,0.76);
+  --text-primary: #f9fafb;
+  --text-secondary: #cbd5e1;
+  --border-color: #394057;
+  --button-bg: var(--accent);
+  --button-bg-alt: #232737;
+  --button-text: #fff;
+  --hud-shadow: 0 2px 10px #000, 0 0 2px var(--accent);
 }
+
+/* Responsive theming, keeps root as light but can adjust [data-theme] in future */
 
 [data-theme="dark"] {
   /* Dark theme colors */

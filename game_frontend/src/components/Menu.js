@@ -180,7 +180,7 @@ function Menu({ open, mode, onResume, onRestart, score, style }) {
         position: "fixed",
         zIndex: 1000,
         inset: 0,
-        background: "rgba(10,12,18,0.92)",
+        background: "linear-gradient(120deg, #17181d99 22%, #171b1e 88%)",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -190,63 +190,92 @@ function Menu({ open, mode, onResume, onRestart, score, style }) {
     >
       <div
         style={{
-          background: "rgba(34,37,51,0.94)",
-          borderRadius: 18,
-          padding: "44px 60px 38px",
-          boxShadow: "0 4px 32px #000a",
-          minWidth: 310,
+          background: "var(--ui-overlay-strong)",
+          borderRadius: 22,
+          padding: "40px min(11vw,70px) 38px",
+          boxShadow: "0 8px 38px #000b, 0 0 0 4px #1a1e2390",
+          minWidth: "min(84vw, 320px)",
           textAlign: "center",
-          border: "2.5px solid #e87a41",
+          border: "3.5px solid var(--accent)",
+          filter: "drop-shadow(0 2.5px 12px #e53e3e44)",
+          maxWidth: 520,
         }}
       >
         <div style={{
-          fontSize: 38,
+          fontSize: "clamp(2.1rem,4vw,2.9rem)",
           fontWeight: 900,
-          letterSpacing: ".03em",
+          letterSpacing: ".023em",
           color: "#ffc97b",
-          marginBottom: 22,
-          textShadow: "0 1px 12px #000a",
+          marginBottom: 18,
+          textShadow: "0 1px 20px #000b,0 1.5px 12px #f5e5b660",
+          lineHeight: 1.12,
         }}>{title}</div>
         <div style={{
-          color: "#edf2f7",
-          fontSize: 21,
-          marginBottom: 34,
+          color: "#e2e8f0",
+          fontSize: "clamp(1.2rem,2.2vw,1.47rem)",
+          marginBottom: 28,
           fontWeight: 500,
-          letterSpacing: ".015em"
+          letterSpacing: ".01em",
+          textShadow: "0 1px 4px #000b",
+          lineHeight: "1.25"
         }}>{message}</div>
         <div style={{ display: "flex", gap: 18, justifyContent: "center" }}>
           {actions}
         </div>
         {leaderboardSection}
       </div>
-      {/* Menu Buttons CSS */}
+      {/* Menu Buttons CSS and overlay styles */}
       <style>{`
         .menu-btn {
-          background: #e87a41;
+          background: var(--accent);
           color: #fff;
-          font-size: 20px;
-          font-weight: 700;
+          font-size: 1.3rem;
+          font-weight: 800;
           border: none;
-          border-radius: 10px;
-          padding: 13px 34px;
+          border-radius: 13px;
+          padding: 13px 33px;
           margin: 0 5px;
           cursor: pointer;
-          box-shadow: 0 2px 10px #0005;
+          box-shadow: 0 3px 18px #0006, 0 0.3px 0.3px #e53e3e66;
           transition: all 0.18s;
           outline: none;
+          letter-spacing: .01em;
+          filter: drop-shadow(0 1.5px 11px #e53e3e25)
         }
         .menu-btn:disabled {
           cursor: not-allowed;
-          background: #c0bdb1;
+          background: #c0bdb1 !important;
+          color: #929292 !important;
         }
-        .menu-btn:hover:not(:disabled), .menu-btn:focus:not(:disabled) {
-          background: #ff8e44;
+        .menu-btn:hover:not(:disabled), .menu-btn:focus-visible:not(:disabled) {
+          background: #ff7c5a;
           color: #232737;
-          transform: translateY(-2px) scale(1.03);
-          box-shadow: 0 6px 24px #e87a417a;
+          transform: translateY(-2px) scale(1.045);
+          box-shadow: 0 9px 27px #e53e3e67;
+          outline: 2.5px solid #ff7c5a66;
         }
         input[type="text"] {
-          transition: background 0.19s, color 0.15s;
+          transition: background 0.19s, color 0.15s, border 0.15s;
+          border: 1.8px solid #394057;
+          background: #232737;
+          color: #f8f6f9;
+        }
+        .menu-overlay {
+          /* immersive glass, backdrop - if supported */
+          backdrop-filter: blur(4.5px);
+        }
+        @media (max-width: 700px) {
+          .menu-overlay > div {
+            padding: 24px 2vw 27px !important;
+            min-width: 92vw !important;
+            max-width: 99vw !important;
+            border-radius: 16px !important;
+          }
+          .menu-btn { font-size: 1.09rem !important; padding: 12px 7vw; border-radius: 10px !important; }
+        }
+        @media (max-width: 420px) {
+          .menu-overlay > div { padding: 9vw 2vw 6vw !important; }
+          .menu-btn { padding: 7px 3vw !important;}
         }
       `}</style>
     </div>
