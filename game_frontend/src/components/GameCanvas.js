@@ -1,5 +1,5 @@
 import React, { useRef, useState, useCallback, useEffect } from "react";
-import { Canvas, useFrame } from "@react-three/fiber";
+import { Canvas } from "@react-three/fiber";
 import { usePlayerControls } from "../game/player";
 import { createNPCs, NPC_STATE } from "../game/npc";
 import { ShootingManager, getPlayerAimDirection } from "../game/shooting";
@@ -12,6 +12,9 @@ import LoadingScreen from "./LoadingScreen";
  * PlayerMesh renders the player's 3D visual and stays synced to logical position.
  */
 function PlayerMesh({ playerRef }) {
+  // Refs & hooks only allowed within Canvas. Hooks must remain here.
+  // useFrame here rather than in parent.
+  const { useFrame } = require("@react-three/fiber");
   useFrame((_, delta) => {
     if (playerRef && typeof playerRef.updatePlayer === "function") {
       playerRef.updatePlayer(delta);
@@ -72,6 +75,8 @@ function NPCMesh({ npc }) {
  * NPCController - handles enemy AI logic per frame and meshes for all NPCs
  */
 function NPCController({ playerRef, npcs, onUpdate }) {
+  // Must be rendered in Canvas so can useFrame!
+  const { useFrame } = require("@react-three/fiber");
   useFrame((_, delta) => {
     if (!playerRef?.player?.current) return;
     const playerPos = playerRef.player.current.position;
@@ -86,6 +91,52 @@ function NPCController({ playerRef, npcs, onUpdate }) {
       ))}
     </>
   );
+}
+
+/**
+ * GameLoopController - Calls all gameplay logic per frame (projectiles, health, deaths, collisions)
+ * This is the only useFrame for main logic; renders no mesh, but collects main side effects.
+ * Must be a direct child of <Canvas>.
+ */
+function GameLoopController({
+  gameState,
+  setScore,
+  setStatus,
+  setGameState,
+  playerRef,
+  npcs,
+  shootingManager
+}) {
+  const { useFrame } = require("@react-three/fiber");
+  useFrame((_, delta) => {
+    if (gameState !== "playing") return;
+    // All projectile/NPC update and collision (returns list of killed NPC indices, triggers score+hit)
+    const killed = shootingManager.update(delta, npcs);
+    if (killed && killed.length > 0) {
+      setScore((prev) => prev + killed.length);
+      for (let i = 0; i < killed.length; ++i) {
+        sound.playHit();
+      }
+    }
+    if (playerRef && playerRef.player && playerRef.player.current) {
+      const player = playerRef.player.current;
+      for (const npc of npcs) {
+        if (!npc || npc.dead) continue;
+        const dx = npc.position[0] - player.position[0];
+        const dz = npc.position[2] - player.position[2];
+        const dist = Math.sqrt(dx * dx + dz * dz);
+        if (dist < 1.5 && !npc.dead) {
+          player.health -= 19 * delta;
+          if (player.health < 0) player.health = 0;
+        }
+      }
+      if (player.health <= 0 && gameState !== "gameover") {
+        setStatus("You were defeated!");
+        setGameState("gameover");
+      }
+    }
+  });
+  return null;
 }
 
 /**
@@ -203,36 +254,6 @@ function GameCanvas() {
     return () => window.removeEventListener("mousedown", handleMouseDown);
   }, [gameState, shootingManager, playerRef]);
 
-  // Main game loop (disable logic on overlays): Propagate all side effects, health, deaths, etc
-  useFrame((_, delta) => {
-    if (gameState !== "playing") return;
-    // All projectile/NPC update and collision (returns list of killed NPC indices, triggers score+hit)
-    const killed = shootingManager.update(delta, npcs);
-    if (killed && killed.length > 0) {
-      setScore((prev) => prev + killed.length);
-      for (let i = 0; i < killed.length; ++i) {
-        sound.playHit();
-      }
-    }
-    if (playerRef && playerRef.player && playerRef.player.current) {
-      const player = playerRef.player.current;
-      for (const npc of npcs) {
-        if (!npc || npc.dead) continue;
-        const dx = npc.position[0] - player.position[0];
-        const dz = npc.position[2] - player.position[2];
-        const dist = Math.sqrt(dx * dx + dz * dz);
-        if (dist < 1.5 && !npc.dead) {
-          player.health -= 19 * delta;
-          if (player.health < 0) player.health = 0;
-        }
-      }
-      if (player.health <= 0 && gameState !== "gameover") {
-        setStatus("You were defeated!");
-        setGameState("gameover");
-      }
-    }
-  });
-
   // Robust health querying
   const health = (
     playerRef && playerRef.player && playerRef.player.current
@@ -263,6 +284,16 @@ function GameCanvas() {
         camera={{ fov: 60, position: [0, 6, 10], near: 0.1, far: 100 }}
         style={{ width: "100%", height: "100%" }}
       >
+        {/* In-Canvas logic wrapper to safely use useFrame */}
+        <GameLoopController
+          gameState={gameState}
+          setScore={setScore}
+          setStatus={setStatus}
+          setGameState={setGameState}
+          playerRef={playerRef}
+          npcs={npcs}
+          shootingManager={shootingManager}
+        />
         {/* Ambient + Directional Lights */}
         <ambientLight intensity={0.4} />
         <directionalLight
