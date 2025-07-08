@@ -6,6 +6,7 @@ import { ShootingManager, getPlayerAimDirection } from "../game/shooting";
 import { sound } from "../game/sound";
 import HUD from "./HUD";
 import Menu from "./Menu";
+import LoadingScreen from "./LoadingScreen";
 
 /**
  * PlayerMesh renders the player's visual representation and updates movement each frame.
@@ -107,6 +108,39 @@ function GameCanvas() {
   const [score, setScore] = useState(0);
   const [gameState, setGameState] = useState("playing"); // "playing", "paused", "gameover"
   const [status, setStatus] = useState("");
+
+  // Asset loading state logic
+  const [loading, setLoading] = useState(true);
+
+  // List of asset/sound preloads (add models, images here if needed)
+  useEffect(() => {
+    let done = false;
+    async function preloadAssets() {
+      // Preload sounds
+      // Register onload listeners so we detect when all needed are loaded
+      const soundPreloads = [];
+      function awaitSoundLoad(howl) {
+        return new Promise(resolve => {
+          if (howl.state() === "loaded") return resolve();
+          howl.once("load", () => resolve());
+        });
+      }
+      if (sound && sound.sounds) {
+        for (let key of Object.keys(sound.sounds)) {
+          if (sound.sounds[key]?.state) {
+            soundPreloads.push(awaitSoundLoad(sound.sounds[key]));
+          }
+        }
+      }
+      // NOTE: add similar awaits for models or textures (via their loaders, if preloading is needed)
+      // Simulate minimal wait for demo (remove in prod)
+      soundPreloads.push(new Promise(r => setTimeout(r, 250)));
+      await Promise.all(soundPreloads);
+      if (!done) setLoading(false);
+    }
+    preloadAssets();
+    return () => { done = true; };
+  }, []);
 
   // SPAWN NPC SET (reset on restart)
   const [npcSeed, setNPCSeed] = useState(0);
@@ -217,6 +251,11 @@ function GameCanvas() {
   }
   function handleRestart() {
     resetGame();
+  }
+
+  // Show loading overlay if assets not ready
+  if (loading) {
+    return <LoadingScreen />;
   }
 
   return (
