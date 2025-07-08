@@ -637,6 +637,78 @@ function GameCanvas() {
         {projectiles.map((proj) =>
           proj.active ? <ProjectileMesh key={proj.id} projectile={proj} /> : null
         )}
+
+        {/* --- Decorative Environmental Obstacles: Rocks and Trees --- */}
+        {/* Place rocks and trees in a ring around play area, outside line of fire */}
+        {(() => {
+          // Parameters for arranging obstacles
+          const boundaryRadius = 10; // just outside target boards
+          const numRocks = 9;
+          const numTrees = 8;
+          const yGround = 0.15;
+
+          // Helper: Place rocks at evenly spaced but offset positions
+          const rocks = Array.from({length: numRocks}).map((_, i) => {
+            const angle = (i / numRocks) * Math.PI * 2 + Math.sin(i) * 0.16;
+            const x = Math.cos(angle) * (boundaryRadius + 1.6 + Math.sin(i * 1.3) * 1.1);
+            const z = Math.sin(angle) * (boundaryRadius + 1.2 + Math.cos(i * 0.85) * 0.7);
+            // Random rock scale
+            const s = 0.74 + (Math.sin(i * 2.31) + 1) * 0.29 + Math.random() * 0.18;
+            // Y "buried" a bit in ground, slight spread
+            const y = yGround + Math.sin(angle * 2.3 + i) * 0.09 - 0.11 + Math.random() * 0.04;
+            return (
+              <mesh
+                key={"rock" + i}
+                position={[x, y, z]}
+                castShadow
+                receiveShadow
+                rotation={[0, angle * 0.6 + i * 0.13, 0]}
+              >
+                <sphereGeometry args={[s * 0.62, 10, 8]} />
+                <meshStandardMaterial color="#8a7b69" metalness={0.22} roughness={0.74} />
+              </mesh>
+            );
+          });
+
+          // Helper: Place trees at evenly spaced positions, offset azimuth from rocks for visual mix
+          const trees = Array.from({length: numTrees}).map((_, i) => {
+            const angle = (i / numTrees) * Math.PI * 2 + Math.PI/numTrees/2 + Math.cos(i * 0.91)*0.14;
+            const x = Math.cos(angle) * (boundaryRadius + 2.3 + Math.cos(i * 2.08) * 0.45);
+            const z = Math.sin(angle) * (boundaryRadius + 2.15 + Math.sin(i * 1.7) * 0.38);
+            // Tree trunk
+            const trunkHeight = 1.28 + Math.sin(i * 0.6) * 0.21 + Math.random() * 0.15;
+            const trunkRadius = 0.19 + Math.sin(i * 1.2) * 0.04;
+            // Tree foliage (cone or sphere for now)
+            const foliageY = yGround + trunkHeight + 0.31;
+            const trunkColor = "#71572c";
+            const foliageColor = i % 2
+              ? "#427c41"
+              : "#3b6234";
+            return (
+              <group key={"tree" + i}>
+                {/* Tree trunk */}
+                <mesh position={[x, yGround + trunkHeight/2, z]} castShadow receiveShadow>
+                  <cylinderGeometry args={[trunkRadius*0.92, trunkRadius, trunkHeight, 9]} />
+                  <meshStandardMaterial color={trunkColor} metalness={0.13} roughness={0.47} />
+                </mesh>
+                {/* Foliage: a sphere or a "pine" cone */}
+                <mesh position={[x, foliageY, z]} castShadow>
+                  <sphereGeometry args={[trunkRadius * 2.1, 11, 8]} />
+                  <meshStandardMaterial color={foliageColor} roughness={0.63} />
+                </mesh>
+                {i % 2 === 1 && (
+                  <mesh position={[x, foliageY + trunkRadius*1.19, z]} castShadow>
+                    <coneGeometry args={[trunkRadius * 1.4, trunkRadius*1.7, 8]} />
+                    <meshStandardMaterial color={foliageColor} roughness={0.66} />
+                  </mesh>
+                )}
+              </group>
+            );
+          });
+
+          // Group all obstacles for clarity
+          return <group>{rocks}{trees}</group>;
+        })()}
       </Canvas>
       {/* HUD: score, accuracy, timer */}
       {gameState === "playing" && (
