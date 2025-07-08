@@ -36,6 +36,7 @@ export class NPC {
     this.health = options.health || 50;
     this.damage = options.damage || 5;
     this.id = options.id || Math.floor(Math.random() * 1000000);
+    this.dead = false; // Must exist for robust game logic handling!
     // For rendering
     this.meshRef = null; // Three.js mesh reference
   }

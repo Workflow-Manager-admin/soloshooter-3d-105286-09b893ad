@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { usePlayerControls } from "../game/player";
 import { createNPCs, NPC_STATE } from "../game/npc";
@@ -93,31 +93,28 @@ function NPCController({ playerRef, npcs, onUpdate }) {
  * - All state, audio, controls, overlays, leaderboard, and async flows
  */
 function GameCanvas() {
-  // Primary game state and manager refs
+  // All persistent refs/states for robust event/state handling
   const playerRef = usePlayerControls();
   const [score, setScore] = useState(0);
-  const [gameState, setGameState] = useState("loading"); // "loading"|"playing"|"paused"|"gameover"
+  const [gameState, setGameState] = useState("loading"); // loading|playing|paused|gameover
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // NPCs and Shooting
+  // Controlled for force respawn on reset/seed
   const [npcSeed, setNPCSeed] = useState(0);
   const npcsRef = useRef([]);
-  const shootingManagerRef = useRef(null);
-  if (!shootingManagerRef.current) {
-    shootingManagerRef.current = new ShootingManager();
-  }
+  const shootingManagerRef = useRef(new ShootingManager());
   const shootingManager = shootingManagerRef.current;
 
-  // Asset preload (sound, images, models if any)
+  // Robust asset/sound preload phase
   useEffect(() => {
     let done = false;
     async function preloadAssets() {
       const soundPreloads = [];
       function awaitSoundLoad(howl) {
-        return new Promise(resolve => {
+        return new Promise((resolve) => {
           if (howl.state() === "loaded") return resolve();
-          howl.once("load", () => resolve());
+          howl.once("load", resolve);
         });
       }
       if (sound && sound.sounds) {
@@ -127,7 +124,7 @@ function GameCanvas() {
           }
         }
       }
-      soundPreloads.push(new Promise(r => setTimeout(r, 250)));
+      soundPreloads.push(new Promise((r) => setTimeout(r, 250)));
       await Promise.all(soundPreloads);
       if (!done) {
         setLoading(false);
@@ -135,51 +132,64 @@ function GameCanvas() {
       }
     }
     preloadAssets();
-    return () => { done = true; };
+    return () => {
+      done = true;
+    };
   }, []);
 
-  // Reset game state (player, score, projectiles, NPCs)
+  // Full state reset: all logic, refs, positions
   const resetGame = useCallback(() => {
     setScore(0);
     setGameState("playing");
     setStatus("");
-    setNPCSeed(seed => seed + 1);
-    if (playerRef && playerRef.player) {
+    setNPCSeed((s) => s + 1);
+    if (playerRef && playerRef.player && playerRef.player.current) {
       const p = playerRef.player.current;
       p.position = [0, 1, 0];
       p.health = 100;
-      p.dir = { forward: 0, backward: 0, left: 0, right: 0 };
-    }
-    if (shootingManagerRef.current) shootingManagerRef.current.projectiles = [];
-  }, [playerRef]);
-
-  // Spawn NPCs on new seed (respawn or initial start)
-  useEffect(() => {
-    npcsRef.current = createNPCs(6, [0, 1, 0], 16);
-    // Reset shooting manager projectiles for new session
-    if (shootingManagerRef.current) shootingManagerRef.current.projectiles = [];
-  }, [npcSeed]);
-
-  const npcs = npcsRef.current || [];
-
-  // Pause controls (use stable event listener to avoid stacking)
-  useEffect(() => {
-    function handlePauseAndRestart(e) {
-      if (e.repeat) return;
-      if (gameState === "playing") {
-        if (e.code === "Escape" || e.code === "KeyP") setGameState("paused");
-      } else if (gameState === "paused") {
-        if (e.code === "Escape" || e.code === "KeyP") setGameState("playing");
-        if (e.code === "KeyR") resetGame();
-      } else if (gameState === "gameover") {
-        if (e.code === "KeyR" || e.code === "Enter") resetGame();
+      if (p.dir) {
+        p.dir.forward = 0; p.dir.backward = 0; p.dir.left = 0; p.dir.right = 0;
       }
     }
-    window.addEventListener("keydown", handlePauseAndRestart);
-    return () => window.removeEventListener("keydown", handlePauseAndRestart);
+    if (shootingManagerRef.current) {
+      shootingManagerRef.current.projectiles = [];
+    }
+  }, [playerRef]);
+
+  // Robust NPC/Projectile respawn on seed change
+  useEffect(() => {
+    npcsRef.current = createNPCs(6, [0, 1, 0], 16);
+    shootingManagerRef.current.projectiles = [];
+  }, [npcSeed]);
+
+  const npcs = npcsRef.current;
+
+  // KEYBOARD event handler: game state, restart, overlays, robust removal/add
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.repeat) return;
+      if (gameState === "playing") {
+        if (e.code === "Escape" || e.code === "KeyP") {
+          setGameState("paused");
+        }
+      } else if (gameState === "paused") {
+        if (e.code === "Escape" || e.code === "KeyP") {
+          setGameState("playing");
+        }
+        if (e.code === "KeyR") {
+          resetGame();
+        }
+      } else if (gameState === "gameover") {
+        if (e.code === "KeyR" || e.code === "Enter") {
+          resetGame();
+        }
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, [gameState, resetGame]);
 
-  // Unified mouse click shooting: only proceeds when playing
+  // MOUSE shooting handler: only listens while in "playing" state
   useEffect(() => {
     function handleMouseDown(e) {
       if (gameState !== "playing") return;
@@ -193,19 +203,17 @@ function GameCanvas() {
     return () => window.removeEventListener("mousedown", handleMouseDown);
   }, [gameState, shootingManager, playerRef]);
 
-  // Main game frame loop for core logic, disables during overlays
+  // Main game loop (disable logic on overlays): Propagate all side effects, health, deaths, etc
   useFrame((_, delta) => {
     if (gameState !== "playing") return;
-    // Projectiles/collision
+    // All projectile/NPC update and collision (returns list of killed NPC indices, triggers score+hit)
     const killed = shootingManager.update(delta, npcs);
     if (killed && killed.length > 0) {
-      setScore(prev => prev + killed.length);
+      setScore((prev) => prev + killed.length);
       for (let i = 0; i < killed.length; ++i) {
         sound.playHit();
       }
     }
-
-    // NPC attacks player when close (simple prototype logic)
     if (playerRef && playerRef.player && playerRef.player.current) {
       const player = playerRef.player.current;
       for (const npc of npcs) {
@@ -225,14 +233,14 @@ function GameCanvas() {
     }
   });
 
-  // Compute current player health (robust)
+  // Robust health querying
   const health = (
     playerRef && playerRef.player && playerRef.player.current
       ? playerRef.player.current.health || 100
       : 100
   );
 
-  // Overlay interaction handlers:
+  // Overlay interaction handlers
   const handleResume = useCallback(() => {
     setGameState("playing");
     setStatus("");
@@ -241,11 +249,12 @@ function GameCanvas() {
     resetGame();
   }, [resetGame]);
 
-  // Always show loading overlay if assets/models/sfx not loaded
+  // Loading overlay always on if not loaded
   if (loading || gameState === "loading") {
     return <LoadingScreen />;
   }
 
+  // Core render: full 3D/CSS overlays
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#1a202c", position: "relative" }}>
       {/* 3D World */}
@@ -276,7 +285,7 @@ function GameCanvas() {
         <PlayerMesh playerRef={playerRef} />
         {/* NPCs - spawn/AI */}
         <NPCController playerRef={playerRef} npcs={npcs} />
-        {/* Projectiles - cleanly managed by manager */}
+        {/* Projectiles - cleanly managed */}
         {shootingManager.projectiles.map((proj) =>
           proj.active ? <ProjectileMesh key={proj.id} projectile={proj} /> : null
         )}
