@@ -1,21 +1,24 @@
-import React, { useRef } from "react";
+import React from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
+import { usePlayerControls } from "../game/player";
 
-// PUBLIC_INTERFACE
 /**
- * GameCanvas sets up the 3D scene using react-three-fiber.
- * It includes a PerspectiveCamera, basic lighting, a ground plane, and a placeholder box.
- * This component serves as the main 3D game area for Soloshooter.
+ * PlayerMesh renders the player's visual representation and updates movement each frame.
  */
-function RotatingBox(props) {
-  // A simple placeholder animated box for demonstration
-  const ref = useRef();
-  useFrame((state, delta) => {
-    ref.current.rotation.y += delta * 0.6;
-    ref.current.rotation.x += delta * 0.3;
+function PlayerMesh({ playerRef }) {
+  useFrame((_, delta) => {
+    if (playerRef && typeof playerRef.updatePlayer === "function") {
+      playerRef.updatePlayer(delta);
+    }
   });
+
+  // Player mesh follows the player's logical position
   return (
-    <mesh ref={ref} position={[0, 1, 0]} {...props} castShadow receiveShadow>
+    <mesh
+      position={playerRef.player.current.position}
+      castShadow
+      receiveShadow
+    >
       <boxGeometry args={[1, 1, 1]} />
       <meshStandardMaterial color="#e53e3e" />
     </mesh>
@@ -23,14 +26,16 @@ function RotatingBox(props) {
 }
 
 // PUBLIC_INTERFACE
+/**
+ * GameCanvas sets up the 3D scene, including player controls, using react-three-fiber.
+ * - PerspectiveCamera (fov 60, position set back and above)
+ * - Lighting: ambient + directional with shadow
+ * - Ground plane (large, gray)
+ * - Player mesh using WASD & mouse for movement & aiming
+ */
 function GameCanvas() {
-  /**
-   * Renders the main 3D scene using @react-three/fiber.
-   * - PerspectiveCamera (fov 60, position set back and above)
-   * - Lighting: ambient + directional with shadow
-   * - Ground plane (large, gray)
-   * - Placeholder box in the center
-   */
+  const playerRef = usePlayerControls();
+
   return (
     <div style={{ width: "100vw", height: "100vh", background: "#1a202c" }}>
       <Canvas
@@ -56,8 +61,8 @@ function GameCanvas() {
           <planeGeometry args={[50, 50]} />
           <meshStandardMaterial color="#4a5568" />
         </mesh>
-        {/* Placeholder object for game entity */}
-        <RotatingBox />
+        {/* Player mesh with controls */}
+        <PlayerMesh playerRef={playerRef} />
       </Canvas>
     </div>
   );
